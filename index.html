@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Valentine's Quordle 💕</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #ffc3d5 0%, #ffb3c9 25%, #ff9eb8 50%, #ffa8c5 75%, #ffc3d5 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            margin: 15px 0 10px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            color: #c41e3a;
+            text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.5);
+            margin-bottom: 5px;
+        }
+
+        .header .subtitle {
+            font-size: 14px;
+            color: #d63864;
+            font-style: italic;
+        }
+
+        .guesses-remaining {
+            font-size: 16px;
+            color: #c41e3a;
+            font-weight: bold;
+            margin: 10px 0;
+            padding: 8px 15px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 20px;
+            border: 2px solid #ff69b4;
+        }
+
+        .boards-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin: 10px 0;
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .board {
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 12px;
+            padding: 8px;
+            border: 3px solid #ff69b4;
+            position: relative;
+        }
+
+        .board.completed {
+            border-color: #c41e3a;
+            background: rgba(255, 192, 213, 0.9);
+        }
+
+        .board-title {
+            text-align: center;
+            font-size: 12px;
+            color: #c41e3a;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-rows: repeat(9, 1fr);
+            gap: 3px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 3px;
+        }
+
+        .tile {
+            aspect-ratio: 1;
+            border: 2px solid #ff69b4;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 4px;
+            background: white;
+            color: #333;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+        }
+
+        .tile.correct {
+            background: #ff1744;
+            border-color: #c41e3a;
+            color: white;
+        }
+
+        .tile.present {
+            background: #ff69b4;
+            border-color: #ff1493;
+            color: white;
+        }
+
+        .tile.absent {
+            background: #d3d3d3;
+            border-color: #999;
+            color: white;
+        }
+
+        .tile.filled {
+            border-color: #c41e3a;
+            animation: pop 0.2s ease;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        .keyboard {
+            width: 100%;
+            max-width: 500px;
+            margin: 15px 0;
+        }
+
+        .keyboard-row {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            margin-bottom: 6px;
+        }
+
+        .key {
+            min-width: 30px;
+            height: 48px;
+            border-radius: 6px;
+            border: none;
+            background: #ffc0cb;
+            color: #c41e3a;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            max-width: 40px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .key.wide {
+            flex: 1.5;
+            max-width: 60px;
+            font-size: 12px;
+        }
+
+        .key:active {
+            transform: scale(0.95);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .key.correct {
+            background: #ff1744;
+            color: white;
+        }
+
+        .key.present {
+            background: #ff69b4;
+            color: white;
+        }
+
+        .key.absent {
+            background: #d3d3d3;
+            color: #666;
+        }
+
+        .heart-confetti {
+            position: absolute;
+            font-size: 20px;
+            pointer-events: none;
+            z-index: 1000;
+            animation: fall 2s ease-out forwards;
+        }
+
+        @keyframes fall {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(200px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.98);
+            padding: 30px;
+            border-radius: 20px;
+            border: 4px solid #ff69b4;
+            box-shadow: 0 8px 32px rgba(196, 30, 58, 0.4);
+            z-index: 2000;
+            text-align: center;
+            max-width: 90%;
+            display: none;
+        }
+
+        .message.show {
+            display: block;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translate(-50%, -60%);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, -50%);
+                opacity: 1;
+            }
+        }
+
+        .message h2 {
+            color: #c41e3a;
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+
+        .message p {
+            color: #d63864;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+
+        .message button {
+            margin-top: 20px;
+            padding: 12px 30px;
+            background: #ff1744;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .message button:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>💕 Valentine's Quordle 💕</h1>
+        <p class="subtitle">Made with love for you ❤️</p>
+    </div>
+
+    <div class="guesses-remaining">
+        Guesses: <span id="guesses">9</span> / 9
+    </div>
+
+    <div class="boards-container" id="boardsContainer">
+        <div class="board" id="board0">
+            <div class="board-title">Word 1</div>
+            <div class="grid" id="grid0"></div>
+        </div>
+        <div class="board" id="board1">
+            <div class="board-title">Word 2</div>
+            <div class="grid" id="grid1"></div>
+        </div>
+        <div class="board" id="board2">
+            <div class="board-title">Word 3</div>
+            <div class="grid" id="grid2"></div>
+        </div>
+        <div class="board" id="board3">
+            <div class="board-title">Word 4</div>
+            <div class="grid" id="grid3"></div>
+        </div>
+    </div>
+
+    <div class="keyboard" id="keyboard">
+        <div class="keyboard-row">
+            <button class="key" data-key="Q">Q</button>
+            <button class="key" data-key="W">W</button>
+            <button class="key" data-key="E">E</button>
+            <button class="key" data-key="R">R</button>
+            <button class="key" data-key="T">T</button>
+            <button class="key" data-key="Y">Y</button>
+            <button class="key" data-key="U">U</button>
+            <button class="key" data-key="I">I</button>
+            <button class="key" data-key="O">O</button>
+            <button class="key" data-key="P">P</button>
+        </div>
+        <div class="keyboard-row">
+            <button class="key" data-key="A">A</button>
+            <button class="key" data-key="S">S</button>
+            <button class="key" data-key="D">D</button>
+            <button class="key" data-key="F">F</button>
+            <button class="key" data-key="G">G</button>
+            <button class="key" data-key="H">H</button>
+            <button class="key" data-key="J">J</button>
+            <button class="key" data-key="K">K</button>
+            <button class="key" data-key="L">L</button>
+        </div>
+        <div class="keyboard-row">
+            <button class="key wide" data-key="ENTER">ENTER</button>
+            <button class="key" data-key="Z">Z</button>
+            <button class="key" data-key="X">X</button>
+            <button class="key" data-key="C">C</button>
+            <button class="key" data-key="V">V</button>
+            <button class="key" data-key="B">B</button>
+            <button class="key" data-key="N">N</button>
+            <button class="key" data-key="M">M</button>
+            <button class="key wide" data-key="BACKSPACE">⌫</button>
+        </div>
+    </div>
+
+    <div class="message" id="message">
+        <h2 id="messageTitle">💝</h2>
+        <p id="messageText"></p>
+        <button onclick="location.reload()">Play Again</button>
+    </div>
+
+    <script>
+        // Hard-coded Valentine's words
+        const WORDS = ['ARTSY', 'GREAT', 'HOTTY', 'SMRTY'];
+        const MAX_GUESSES = 9;
+
+        let currentGuess = '';
+        let guessesUsed = 0;
+        let completedBoards = new Set();
+        let letterStates = {};
+
+        // Initialize grids
+        function initializeGrids() {
+            WORDS.forEach((word, boardIndex) => {
+                const grid = document.getElementById(`grid${boardIndex}`);
+                for (let i = 0; i < MAX_GUESSES; i++) {
+                    const row = document.createElement('div');
+                    row.className = 'row';
+                    for (let j = 0; j < 5; j++) {
+                        const tile = document.createElement('div');
+                        tile.className = 'tile';
+                        tile.id = `tile-${boardIndex}-${i}-${j}`;
+                        row.appendChild(tile);
+                    }
+                    grid.appendChild(row);
+                }
+            });
+        }
+
+        // Handle key press
+        function handleKey(key) {
+            if (completedBoards.size === 4 || guessesUsed >= MAX_GUESSES) return;
+
+            if (key === 'ENTER') {
+                if (currentGuess.length === 5) {
+                    submitGuess();
+                }
+            } else if (key === 'BACKSPACE') {
+                if (currentGuess.length > 0) {
+                    currentGuess = currentGuess.slice(0, -1);
+                    updateCurrentRow();
+                }
+            } else if (currentGuess.length < 5) {
+                currentGuess += key;
+                updateCurrentRow();
+            }
+        }
+
+        // Update current row with letters
+        function updateCurrentRow() {
+            WORDS.forEach((word, boardIndex) => {
+                if (completedBoards.has(boardIndex)) return;
+
+                for (let i = 0; i < 5; i++) {
+                    const tile = document.getElementById(`tile-${boardIndex}-${guessesUsed}-${i}`);
+                    if (i < currentGuess.length) {
+                        tile.textContent = currentGuess[i];
+                        tile.classList.add('filled');
+                    } else {
+                        tile.textContent = '';
+                        tile.classList.remove('filled');
+                    }
+                }
+            });
+        }
+
+        // Submit guess
+        function submitGuess() {
+            const newlyCompleted = [];
+
+            WORDS.forEach((word, boardIndex) => {
+                if (completedBoards.has(boardIndex)) return;
+
+                const guessLetters = currentGuess.split('');
+                const wordLetters = word.split('');
+                const letterCount = {};
+
+                // Count letters in word
+                wordLetters.forEach(letter => {
+                    letterCount[letter] = (letterCount[letter] || 0) + 1;
+                });
+
+                // First pass: mark correct letters
+                const states = Array(5).fill('absent');
+                guessLetters.forEach((letter, i) => {
+                    if (letter === wordLetters[i]) {
+                        states[i] = 'correct';
+                        letterCount[letter]--;
+                    }
+                });
+
+                // Second pass: mark present letters
+                guessLetters.forEach((letter, i) => {
+                    if (states[i] === 'absent' && letterCount[letter] > 0) {
+                        states[i] = 'present';
+                        letterCount[letter]--;
+                    }
+                });
+
+                // Apply states to tiles
+                let isCorrect = true;
+                guessLetters.forEach((letter, i) => {
+                    const tile = document.getElementById(`tile-${boardIndex}-${guessesUsed}-${i}`);
+                    tile.classList.add(states[i]);
+
+                    if (states[i] !== 'correct') isCorrect = false;
+
+                    // Update letter states for keyboard
+                    if (!letterStates[letter] ||
+                        (letterStates[letter] === 'absent' && states[i] !== 'absent') ||
+                        (letterStates[letter] === 'present' && states[i] === 'correct')) {
+                        letterStates[letter] = states[i];
+                    }
+                });
+
+                if (isCorrect) {
+                    completedBoards.add(boardIndex);
+                    document.getElementById(`board${boardIndex}`).classList.add('completed');
+                    newlyCompleted.push(boardIndex);
+                }
+            });
+
+            // Trigger confetti for newly completed boards
+            newlyCompleted.forEach(boardIndex => {
+                setTimeout(() => triggerHeartConfetti(boardIndex), 300);
+            });
+
+            updateKeyboard();
+            guessesUsed++;
+            currentGuess = '';
+            document.getElementById('guesses').textContent = MAX_GUESSES - guessesUsed;
+
+            checkGameEnd();
+        }
+
+        // Update keyboard colors
+        function updateKeyboard() {
+            Object.keys(letterStates).forEach(letter => {
+                const key = document.querySelector(`[data-key="${letter}"]`);
+                if (key) {
+                    key.classList.remove('correct', 'present', 'absent');
+                    key.classList.add(letterStates[letter]);
+                }
+            });
+        }
+
+        // Heart confetti animation
+        function triggerHeartConfetti(boardIndex) {
+            const board = document.getElementById(`board${boardIndex}`);
+            const rect = board.getBoundingClientRect();
+            const hearts = ['❤️', '💕', '💖', '💗', '💓', '💝'];
+
+            for (let i = 0; i < 20; i++) {
+                setTimeout(() => {
+                    const heart = document.createElement('div');
+                    heart.className = 'heart-confetti';
+                    heart.textContent = hearts[Math.floor(Math.random() * hearts.length)];
+                    heart.style.left = `${rect.left + Math.random() * rect.width}px`;
+                    heart.style.top = `${rect.top}px`;
+                    heart.style.fontSize = `${15 + Math.random() * 15}px`;
+                    document.body.appendChild(heart);
+
+                    setTimeout(() => heart.remove(), 2000);
+                }, i * 50);
+            }
+        }
+
+        // Check if game ended
+        function checkGameEnd() {
+            if (completedBoards.size === 4) {
+                setTimeout(() => {
+                    const message = document.getElementById('message');
+                    document.getElementById('messageTitle').textContent = '🎉 You Did It! 💝';
+                    document.getElementById('messageText').innerHTML = `
+                        You solved all four words in ${guessesUsed} ${guessesUsed === 1 ? 'guess' : 'guesses'}!<br>
+                        <br>
+                        You're ARTSY, you're GREAT,<br>
+                        you're a total HOTTY,<br>
+                        and you're so SMRTY! 💕<br>
+                        <br>
+                        Happy Valentine's Day! ❤️
+                    `;
+                    message.classList.add('show');
+                }, 1500);
+            } else if (guessesUsed >= MAX_GUESSES) {
+                setTimeout(() => {
+                    const message = document.getElementById('message');
+                    document.getElementById('messageTitle').textContent = '💕 Nice Try! 💕';
+                    const remaining = [];
+                    WORDS.forEach((word, i) => {
+                        if (!completedBoards.has(i)) remaining.push(word);
+                    });
+                    document.getElementById('messageText').innerHTML = `
+                        You got ${completedBoards.size} out of 4 words!<br>
+                        <br>
+                        The words were:<br>
+                        ${WORDS.join(', ')}<br>
+                        <br>
+                        You're still amazing! ❤️
+                    `;
+                    message.classList.add('show');
+                }, 500);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('keyboard').addEventListener('click', (e) => {
+            if (e.target.classList.contains('key')) {
+                handleKey(e.target.dataset.key);
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                handleKey('ENTER');
+            } else if (e.key === 'Backspace') {
+                handleKey('BACKSPACE');
+            } else if (/^[a-zA-Z]$/.test(e.key)) {
+                handleKey(e.key.toUpperCase());
+            }
+        });
+
+        // Initialize game
+        initializeGrids();
+    </script>
+</body>
+</html>
